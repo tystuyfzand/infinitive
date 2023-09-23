@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/hex"
 	"errors"
+	"io/fs"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -15,7 +16,7 @@ import (
 )
 
 var (
-	//go:embed assets/
+	//go:embed assets/*
 	assetFs embed.FS
 )
 
@@ -186,8 +187,13 @@ func webserver(port int) {
 		h.ServeHTTP(c.Writer, c.Request)
 	})
 
-	r.StaticFS("/ui", http.FS(assetFs))
-	// r.Static("/ui", "github.com/acd/infinitease/assets")
+	subFs, err := fs.Sub(assetFs, "assets")
+
+	if err != nil {
+		log.WithError(err).Error("Unable to get subdirectory of fs")
+	}
+
+	r.StaticFS("/ui", http.FS(subFs))
 
 	r.GET("/", func(c *gin.Context) {
 		c.Redirect(http.StatusMovedPermanently, "ui")
