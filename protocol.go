@@ -10,7 +10,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
-	serial "github.com/tarm/serial"
+	"go.bug.st/serial"
 )
 
 const (
@@ -55,7 +55,10 @@ type Action struct {
 var readTimeout = time.Second * 5
 
 func (p *InfinityProtocol) openSerial() error {
-	log.Printf("opening serial interface: %s", p.device)
+	log.WithFields(log.Fields{
+		"port": p.device,
+	}).Info("Opening serial interface")
+
 	if p.port != nil {
 		p.port.Close()
 	}
@@ -76,12 +79,17 @@ func (p *InfinityProtocol) openSerial() error {
 
 		p.port = c
 	default:
-		c := &serial.Config{Name: p.device, Baud: 38400, ReadTimeout: readTimeout}
+		mode := &serial.Mode{
+			BaudRate: 38400,
+		}
 
-		p.port, err = serial.OpenPort(c)
+		port, err := serial.Open(p.device, mode)
+
 		if err != nil {
 			return err
 		}
+
+		p.port = port
 	}
 
 	return nil
@@ -89,6 +97,7 @@ func (p *InfinityProtocol) openSerial() error {
 
 func (p *InfinityProtocol) Open() error {
 	err := p.openSerial()
+
 	if err != nil {
 		return err
 	}
@@ -100,6 +109,7 @@ func (p *InfinityProtocol) Open() error {
 	if p.reportDuration == 0 {
 		p.reportDuration = time.Hour * 24
 	}
+
 	ticker := time.NewTicker(p.reportDuration)
 	go func() {
 		for range ticker.C {
@@ -156,8 +166,6 @@ func (p *InfinityProtocol) handleFrame(frame *InfinityFrame) *InfinityFrame {
 }
 
 func (p *InfinityProtocol) reader() {
-	defer panic("exiting InfinityProtocol reader, this should never happen")
-
 	msg := []byte{}
 	buf := make([]byte, 1024)
 
@@ -212,8 +220,6 @@ func (p *InfinityProtocol) reader() {
 }
 
 func (p *InfinityProtocol) broker() {
-	defer panic("exiting InfinityProtocol broker, this should never happen")
-
 	for {
 		// log.Debug("entering action select")
 		select {
