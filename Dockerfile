@@ -1,10 +1,13 @@
 FROM golang:alpine AS builder
 
-ADD . .
+RUN mkdir /app
+WORKDIR /app
+
+ADD . /app
 RUN go build -o infinitive
 
 FROM alpine
 
-COPY --from=builder infinitive /usr/bin/infinitive
+COPY --from=builder /app/infinitive /usr/bin/infinitive
 
 CMD [ "/usr/bin/infinitive" ]
