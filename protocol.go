@@ -3,11 +3,14 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
+	"net"
+	"net/url"
 	"reflect"
 	"time"
 
-	log "github.com/Sirupsen/logrus"
-	"github.com/tarm/serial"
+	log "github.com/sirupsen/logrus"
+	serial "github.com/tarm/serial"
 )
 
 const (
@@ -33,7 +36,7 @@ type InfinityProtocolSnoop struct {
 
 type InfinityProtocol struct {
 	device                                 string
-	port                                   *serial.Port
+	port                                   io.ReadWriteCloser
 	responseCh                             chan *InfinityFrame
 	actionCh                               chan *Action
 	snoops                                 []InfinityProtocolSnoop
@@ -57,11 +60,28 @@ func (p *InfinityProtocol) openSerial() error {
 		p.port.Close()
 	}
 
-	c := &serial.Config{Name: p.device, Baud: 38400, ReadTimeout: readTimeout}
-	var err error
-	p.port, err = serial.OpenPort(c)
+	u, err := url.Parse(p.device)
+
 	if err != nil {
 		return err
+	}
+
+	switch u.Scheme {
+	case "tcp", "udp":
+		c, err := net.DialTimeout(u.Scheme, u.Host, readTimeout)
+
+		if err != nil {
+			return err
+		}
+
+		p.port = c
+	default:
+		c := &serial.Config{Name: p.device, Baud: 38400, ReadTimeout: readTimeout}
+
+		p.port, err = serial.OpenPort(c)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -144,7 +164,11 @@ func (p *InfinityProtocol) reader() {
 	for {
 		if p.port == nil {
 			msg = []byte{}
-			p.openSerial()
+			if err := p.openSerial(); err != nil {
+				log.WithError(err).Error("Unable to open serial port, trying again in 2 seconds")
+				time.Sleep(2 * time.Second)
+				continue
+			}
 		}
 
 		n, err := p.port.Read(buf)
@@ -269,8 +293,8 @@ func (p *InfinityProtocol) send(dst uint16, op uint8, requestData []byte, respon
 		r := bytes.NewReader(act.responseFrame.data[dataStart:])
 		err := binary.Read(r, binary.BigEndian, response)
 		if err != nil {
-			log.Printf("Read failed:", err)
-			log.Printf("Data was %v :%x", reflect.TypeOf(response), act.responseFrame.data)
+			log.Error("Read failed:", err)
+			log.Errorf("Data was %v :%x", reflect.TypeOf(response), act.responseFrame.data)
 			p.readErrors++
 			return false
 		}

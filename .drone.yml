@@ -1,0 +1,24 @@
+kind: pipeline
+name: amd64
+type: docker
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+  - name: docker
+    image: plugins/docker
+    settings:
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+      repo: ghcr.io/tystuyfzand/infinitive
+      registry: ghcr.io
+      tags:
+        - latest
+    when:
+      branch:
+        include:
+          - master

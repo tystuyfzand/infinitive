@@ -1,6 +1,7 @@
 package main
 
 import (
+	"embed"
 	"encoding/hex"
 	"errors"
 	"net/http"
@@ -9,8 +10,13 @@ import (
 
 	"golang.org/x/net/websocket"
 
-	log "github.com/Sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
+)
+
+var (
+	//go:embed assets/
+	assetFs embed.FS
 )
 
 func handleErrors(c *gin.Context) {
@@ -119,10 +125,10 @@ func webserver(port int) {
 				flags |= 0x02
 			}
 
-// 			if args.HoldDuration > 0 {
-// 				params.Z1HoldDuration = args.HoldDuration
-// 				flags |= 0x04 # not sure how to determine the correct value to indicate this has changed
-// 			}
+			// 			if args.HoldDuration > 0 {
+			// 				params.Z1HoldDuration = args.HoldDuration
+			// 				flags |= 0x04 # not sure how to determine the correct value to indicate this has changed
+			// 			}
 
 			if args.HeatSetpoint > 0 {
 				params.Z1HeatSetpoint = args.HeatSetpoint
@@ -180,7 +186,7 @@ func webserver(port int) {
 		h.ServeHTTP(c.Writer, c.Request)
 	})
 
-	r.StaticFS("/ui", assetFS())
+	r.StaticFS("/ui", http.FS(assetFs))
 	// r.Static("/ui", "github.com/acd/infinitease/assets")
 
 	r.GET("/", func(c *gin.Context) {
