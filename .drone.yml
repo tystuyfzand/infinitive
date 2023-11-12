@@ -14,8 +14,9 @@ steps:
         path: /build
     commands:
       - mkdir -p /build
-      - goc -o /build/goc
+      - goc -o /build/infinitive
     environment:
+      CGO_ENABLED: 0
       GOOS: linux,windows,darwin
       GOARCH: 386,amd64,arm,arm64
   - name: publish
