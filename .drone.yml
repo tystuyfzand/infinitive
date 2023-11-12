@@ -9,25 +9,19 @@ platform:
 steps:
   - name: build
     image: ghcr.io/tystuyfzand/goc:go1.21
-    volumes:
-      - name: build
-        path: /build
     commands:
-      - mkdir -p /build
-      - goc -o /build/infinitive
+      - mkdir -p ./out
+      - goc -o ./out/infinitive
     environment:
       CGO_ENABLED: 0
       GOOS: linux,windows,darwin
       GOARCH: 386,amd64,arm,arm64
   - name: publish
     image: plugins/github-release
-    volumes:
-      - name: build
-        path: /build
     settings:
       api_key:
         from_secret: github_api_key
-      files: /build/*
+      files: ./out/*
     when:
       event: tag
   - name: docker
